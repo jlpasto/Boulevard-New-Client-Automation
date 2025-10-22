@@ -8,6 +8,7 @@
     "client_id": "30222c4b-30f4-4659-a1ac-bb42c622f4c9",
     "staff_id": "52598e4f-6524-455a-a06e-96f2489b29ae",
     "recurring_appointment_id": null,
-    "phone_number": "(210) 473-2469"
+    "phone_number": "(210) 473-2469",
+    "booked_by": "Christina C."
   }
 ]

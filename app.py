@@ -423,7 +423,7 @@ def filter_new_clients_from_raw(raw_data: Dict[str, Any]) -> List[Dict[str, Any]
         return []
 
 
-async def getAppointmentDetails(page: Page, client_name: str, appointment_date: str) -> Optional[str]:
+async def getAppointmentDetails(page: Page, client_name: str, appointment_date: str) -> Optional[Dict[str, Any]]:
     """
     Get appointment details for a specific client and date by navigating to sales orders page.
 
@@ -433,7 +433,7 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
         appointment_date: Appointment date in MM/DD/YYYY format
 
     Returns:
-        Phone number as a string, or None if not found
+        Dictionary containing extracted details (phone_number, etc.), or None if failed
     """
     try:
         logger.info(f"Called getAppointmentDetails for client: '{client_name}' on date: '{appointment_date}'")
@@ -505,6 +505,9 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
             logger.warning(f"No order row found with date: {formatted_date}")
             return None
 
+        # Initialize details dictionary
+        appointment_details = {}
+
         # Extract phone number from the opened order details
         logger.info("Extracting phone number from order details...")
 
@@ -525,18 +528,76 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                         phone_number = await phone_span.inner_text()
                         phone_number = phone_number.strip()
                         logger.info(f"Extracted phone number: {phone_number}")
-                        return phone_number
+                        appointment_details['phone_number'] = phone_number
                     else:
                         logger.warning("Phone span not found within parent div")
+                        appointment_details['phone_number'] = 'N/A'
                 else:
                     logger.warning("Parent div with tw-flex not found")
+                    appointment_details['phone_number'] = 'N/A'
             else:
                 logger.warning("Smartphone SVG icon not found on page")
+                appointment_details['phone_number'] = 'N/A'
 
         except Exception as e:
             logger.error(f"Error extracting phone number: {e}", exc_info=True)
+            appointment_details['phone_number'] = 'N/A'
 
-        return None
+        # Click the "View Appointment" button
+        logger.info("Looking for 'View Appointment' button...")
+
+        try:
+            # Find the View Appointment button
+            view_appointment_button = await page.query_selector('button.link-module_link__3ZzUy:has-text("View Appointment")')
+
+            if view_appointment_button:
+                logger.info("Found 'View Appointment' button, clicking...")
+                await view_appointment_button.click()
+
+                # Wait for the modal to open
+                await page.wait_for_timeout(2000)
+                logger.info("'View Appointment' modal should be open")
+
+                # Extract "booked by" information from the modal
+                logger.info("Extracting 'booked by' information from modal...")
+
+                try:
+                    # Find all span elements with class 'update-entry-actor'
+                    actor_spans = await page.query_selector_all('span.update-entry-actor')
+
+                    booked_by = 'N/A'
+                    for span in actor_spans:
+                        span_text = await span.inner_text()
+                        span_text = span_text.strip()
+
+                        # Check if the text contains "booked"
+                        if 'booked' in span_text.lower():
+                            logger.info(f"Found span with 'booked': {span_text}")
+
+                            # Extract the text before "booked"
+                            # Split by "booked" and take the first part
+                            parts = span_text.split('booked')
+                            if len(parts) > 0:
+                                booked_by = parts[0].strip()
+                                logger.info(f"Extracted booked_by: {booked_by}")
+                                appointment_details['booked_by'] = booked_by
+                                break
+
+                    if booked_by == 'N/A':
+                        logger.warning("No span element containing 'booked' found in modal")
+                        appointment_details['booked_by'] = 'N/A'
+
+                except Exception as e:
+                    logger.error(f"Error extracting 'booked by' information: {e}", exc_info=True)
+                    appointment_details['booked_by'] = 'N/A'
+
+            else:
+                logger.warning("'View Appointment' button not found")
+
+        except Exception as e:
+            logger.error(f"Error clicking 'View Appointment' button: {e}", exc_info=True)
+
+        return appointment_details
 
     except Exception as e:
         logger.error(f"Error in getAppointmentDetails for client '{client_name}': {e}", exc_info=True)
@@ -631,16 +692,27 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
                           f"{extracted_record['service_name']} - "
                           f"${extracted_record['price']}")
 
-                # Call getAppointmentDetails for this record and get phone number
-                phone_number = await getAppointmentDetails(
+                # Call getAppointmentDetails for this record and get additional details
+                appointment_details = await getAppointmentDetails(
                     page=page,
                     client_name=extracted_record['client_name'],
                     appointment_date=extracted_record['appointment_date']
                 )
 
-                # Add phone number to the extracted record
-                extracted_record['phone_number'] = phone_number if phone_number else 'N/A'
-                logger.info(f"Added phone number to record: {phone_number if phone_number else 'Not found'}")
+                # Add appointment details to the extracted record
+                if appointment_details:
+                    # Add phone number
+                    extracted_record['phone_number'] = appointment_details.get('phone_number', 'N/A')
+                    logger.info(f"Added phone number to record: {appointment_details.get('phone_number', 'Not found')}")
+
+                    # Add any other extracted details from the dictionary
+                    for key, value in appointment_details.items():
+                        if key != 'phone_number':  # Phone number already added above
+                            extracted_record[key] = value
+                            logger.info(f"Added {key} to record: {value}")
+                else:
+                    logger.warning("No appointment details returned")
+                    extracted_record['phone_number'] = 'N/A'
 
             except Exception as e:
                 logger.warning(f"Error extracting fields from event {idx}: {e}")
