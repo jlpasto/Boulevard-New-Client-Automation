@@ -566,6 +566,8 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                     actor_spans = await page.query_selector_all('span.update-entry-actor')
 
                     booked_by = 'N/A'
+                    booked_date = 'N/A'
+
                     for span in actor_spans:
                         span_text = await span.inner_text()
                         span_text = span_text.strip()
@@ -575,21 +577,36 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                             logger.info(f"Found span with 'booked': {span_text}")
 
                             # Extract the text before "booked"
-                            # Split by "booked" and take the first part
                             parts = span_text.split('booked')
                             if len(parts) > 0:
                                 booked_by = parts[0].strip()
                                 logger.info(f"Extracted booked_by: {booked_by}")
                                 appointment_details['booked_by'] = booked_by
-                                break
+
+                            # Extract the text after "booked ·"
+                            if len(parts) > 1:
+                                # The second part contains " · Mon Oct 6 @ 3:48pm CDT"
+                                after_booked = parts[1].strip()
+
+                                # Remove the leading "·" if present
+                                if after_booked.startswith('·'):
+                                    after_booked = after_booked[1:].strip()
+
+                                booked_date = after_booked
+                                logger.info(f"Extracted booked_date: {booked_date}")
+                                appointment_details['booked_date'] = booked_date
+
+                            break
 
                     if booked_by == 'N/A':
                         logger.warning("No span element containing 'booked' found in modal")
                         appointment_details['booked_by'] = 'N/A'
+                        appointment_details['booked_date'] = 'N/A'
 
                 except Exception as e:
                     logger.error(f"Error extracting 'booked by' information: {e}", exc_info=True)
                     appointment_details['booked_by'] = 'N/A'
+                    appointment_details['booked_date'] = 'N/A'
 
             else:
                 logger.warning("'View Appointment' button not found")
