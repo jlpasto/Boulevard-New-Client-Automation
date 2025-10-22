@@ -34,6 +34,9 @@ MAX_LOGIN_ATTEMPTS = 3
 LOGIN_TIMEOUT = 30000  # 30 seconds
 PAGE_LOAD_TIMEOUT = 15000  # 15 seconds
 
+# Testing configuration
+TEST_ENV = True  # Set to True to test with only 1 record, False for production
+
 
 async def is_on_login_page(page: Page) -> bool:
     """
@@ -477,11 +480,20 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
     try:
         logger.info("=" * 60)
         logger.info("Extracting specific fields from new client events...")
+        if TEST_ENV:
+            logger.info("*** TEST MODE: Processing only 1 record ***")
         logger.info("=" * 60)
 
         extracted_data = []
 
-        for idx, event in enumerate(new_client_events, 1):
+        # Limit to 1 record if in TEST_ENV mode
+        events_to_process = new_client_events[:1] if TEST_ENV else new_client_events
+        total_available = len(new_client_events)
+
+        if TEST_ENV and total_available > 0:
+            logger.info(f"Testing with 1 record out of {total_available} available new client events")
+
+        for idx, event in enumerate(events_to_process, 1):
             try:
                 # Extract and format the date from 'start' field
                 start_date_str = event.get('start', '')
