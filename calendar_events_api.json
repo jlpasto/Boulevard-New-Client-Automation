@@ -1,0 +1,245 @@
+{
+  "appointment_fields": {
+    "id": {
+      "type": "string (UUID)",
+      "description": "Unique identifier for the appointment",
+      "example": "03c47cdb-4827-47aa-a522-07e5826faea7",
+      "nullable": false
+    },
+    "title": {
+      "type": "string",
+      "description": "Display title for the appointment (usually client name or meeting description)",
+      "example": "Sara Bazan",
+      "nullable": false
+    },
+    "start": {
+      "type": "string (ISO 8601 datetime)",
+      "description": "Appointment start time with timezone offset",
+      "example": "2025-10-22T12:30:00-05:00",
+      "nullable": false
+    },
+    "end": {
+      "type": "string (ISO 8601 datetime)",
+      "description": "Appointment end time with timezone offset",
+      "example": "2025-10-22T13:15:00-05:00",
+      "nullable": false
+    },
+    "duration": {
+      "type": "integer",
+      "description": "Total duration of the appointment in minutes",
+      "example": 45,
+      "nullable": false
+    },
+    "state": {
+      "type": "string (enum)",
+      "description": "Current status of the appointment",
+      "possible_values": ["booked", "confirmed", "cancelled", "completed", "no_show"],
+      "example": "confirmed",
+      "nullable": false
+    },
+    "price": {
+      "type": "number",
+      "description": "Price of the service in dollars (or base currency)",
+      "example": 90,
+      "nullable": false
+    },
+    "client_id": {
+      "type": "string (UUID)",
+      "description": "Unique identifier for the client associated with this appointment",
+      "example": "e1163ebe-35c6-4175-8265-dcf491210b76",
+      "nullable": true,
+      "note": "Null for non-client appointments like meetings or reminders"
+    },
+    "staff_id": {
+      "type": "string (UUID)",
+      "description": "Unique identifier for the staff member assigned to this appointment",
+      "example": "6cf098ff-8414-486b-8465-8ce03cb991a1",
+      "nullable": false
+    },
+    "staff": {
+      "type": "object",
+      "description": "Staff member details (when populated)",
+      "nullable": true,
+      "fields": {
+        "id": "Staff member UUID",
+        "first_name": "Staff member's first name",
+        "last_name": "Staff member's last name"
+      },
+      "example": {
+        "id": "b4b9e43d-8e88-4bb7-89e6-c19baad1ccc1",
+        "first_name": "Amanda T",
+        "last_name": "Trevino"
+      }
+    },
+    "service_id": {
+      "type": "string (UUID)",
+      "description": "Unique identifier for the service being performed",
+      "example": "2bc53417-7945-4950-bc8a-bf33621b492c",
+      "nullable": true,
+      "note": "Null for non-service appointments"
+    },
+    "service": {
+      "type": "object",
+      "description": "Service details (when populated)",
+      "nullable": true,
+      "fields": {
+        "id": "Service UUID",
+        "name": "Service display name",
+        "color": "Color code/theme number for calendar display"
+      },
+      "example": {
+        "id": "2bc53417-7945-4950-bc8a-bf33621b492c",
+        "name": "Dermaplaning",
+        "color": 5
+      }
+    },
+    "appointment_service_id": {
+      "type": "string (UUID)",
+      "description": "Unique identifier linking this appointment to a specific service instance",
+      "example": "e966421c-edd6-4562-b299-e41f50d88539",
+      "nullable": false
+    },
+    "base_appointment_service_id": {
+      "type": "string (UUID)",
+      "description": "Reference to the original appointment service if this is a modification or add-on",
+      "example": null,
+      "nullable": true
+    },
+    "recurring_appointment_id": {
+      "type": "string (UUID)",
+      "description": "Identifier linking this appointment to a recurring series",
+      "example": "e628e6fa-3aae-426d-a14c-f0b7af1123ef",
+      "nullable": true,
+      "note": "Null for one-time appointments"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Internal notes about the appointment (staff-facing)",
+      "example": null,
+      "nullable": true
+    },
+    "client_message": {
+      "type": "string",
+      "description": "Message or notes from the client when booking",
+      "example": null,
+      "nullable": true
+    },
+    "staff_requested": {
+      "type": "boolean",
+      "description": "Whether the client specifically requested this staff member",
+      "example": true,
+      "nullable": false
+    },
+    "is_new_client": {
+      "type": "boolean",
+      "description": "Indicates if this is the client's first appointment",
+      "example": false,
+      "nullable": false
+    },
+    "guest_number": {
+      "type": "integer",
+      "description": "Number of additional guests for this appointment",
+      "example": 0,
+      "nullable": false
+    },
+    "finish_duration": {
+      "type": "integer",
+      "description": "Additional time needed to complete/finish the service (in minutes)",
+      "example": 0,
+      "nullable": false
+    },
+    "post_staff_duration": {
+      "type": "integer",
+      "description": "Buffer time after appointment for staff cleanup/preparation (in minutes)",
+      "example": 20,
+      "nullable": false
+    },
+    "post_client_duration": {
+      "type": "integer",
+      "description": "Buffer time after appointment for client (in minutes)",
+      "example": 0,
+      "nullable": false
+    },
+    "editable": {
+      "type": "boolean",
+      "description": "Whether this appointment can be edited in the UI",
+      "example": true,
+      "nullable": false
+    },
+    "durationEditable": {
+      "type": "boolean",
+      "description": "Whether the duration can be modified",
+      "example": false,
+      "nullable": false
+    },
+    "abilities": {
+      "type": "object",
+      "description": "Permission flags for actions that can be performed on this appointment",
+      "nullable": false,
+      "fields": {
+        "cancel": "User can cancel this appointment",
+        "edit": "User can edit this appointment",
+        "checkout": "User can checkout/complete this appointment"
+      },
+      "example": {
+        "cancel": true,
+        "edit": true,
+        "checkout": true
+      }
+    },
+    "service_option_ids": {
+      "type": "array of strings (UUIDs)",
+      "description": "List of selected service options/add-ons for this appointment",
+      "example": ["5f17fe6c-1168-4d2f-9f74-c470fa4c0671"],
+      "nullable": true
+    },
+    "resource_ids": {
+      "type": "array of strings (UUIDs)",
+      "description": "List of resources (rooms, equipment) assigned to this appointment",
+      "example": null,
+      "nullable": true
+    },
+    "effective_tag_ids": {
+      "type": "array of strings (UUIDs)",
+      "description": "Tags/labels associated with this appointment for categorization",
+      "example": ["7cb527a9-987a-44ee-9ffb-61bf3d29373f"],
+      "nullable": false,
+      "note": "Empty array if no tags"
+    },
+    "hex_color": {
+      "type": "string",
+      "description": "Custom hex color code for calendar display",
+      "example": "",
+      "nullable": false,
+      "note": "Empty string means use default theme color"
+    },
+    "className": {
+      "type": "string",
+      "description": "CSS class name for styling the appointment in calendar view",
+      "example": "theme-1",
+      "nullable": false,
+      "note": "Used for color theming (theme-1 through theme-13+)"
+    },
+    "origination": {
+      "type": "string (enum)",
+      "description": "Source of the appointment booking",
+      "possible_values": ["dashboard", "online_booking", "mobile_app", "api"],
+      "example": "dashboard",
+      "nullable": false
+    },
+    "booked_by_client_full_name": {
+      "type": "string",
+      "description": "Full name of the person who booked the appointment (if different from client)",
+      "example": null,
+      "nullable": true
+    }
+  },
+  "usage_notes": {
+    "time_calculations": "Total blocked time = duration + finish_duration + post_staff_duration + post_client_duration",
+    "client_appointments": "Appointments with client_id are client services. Null client_id indicates internal meetings/tasks/reminders",
+    "service_appointments": "Appointments with service_id are billable services. Null service_id indicates non-service events",
+    "recurring_logic": "All appointments in a series share the same recurring_appointment_id",
+    "color_priority": "hex_color takes precedence over className theme colors if provided",
+    "state_workflow": "Typical flow: booked → confirmed → completed (or cancelled/no_show)"
+  }
+}
