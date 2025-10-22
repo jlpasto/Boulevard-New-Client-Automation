@@ -5,6 +5,7 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+from urllib.parse import quote
 
 # Configure logging
 logging.basicConfig(
@@ -419,25 +420,47 @@ def filter_new_clients_from_raw(raw_data: Dict[str, Any]) -> List[Dict[str, Any]
         return []
 
 
-async def getAppointmentDetails(client_name: str, appointment_date: str) -> None:
+async def getAppointmentDetails(page: Page, client_name: str, appointment_date: str) -> None:
     """
-    Get appointment details for a specific client and date.
+    Get appointment details for a specific client and date by navigating to sales orders page.
 
     Args:
+        page: Playwright page object with active session
         client_name: Name of the client
         appointment_date: Appointment date in MM/DD/YYYY format
     """
-    logger.info(f"Called getAppointmentDetails for client: '{client_name}' on date: '{appointment_date}'")
-    # TODO: Add appointment details retrieval logic here
-    pass
+    try:
+        logger.info(f"Called getAppointmentDetails for client: '{client_name}' on date: '{appointment_date}'")
+
+        # URL encode the client name for safe URL formatting
+        encoded_client_name = quote(client_name)
+
+        # Construct the sales orders URL with the client name parameter
+        sales_orders_url = f"https://dashboard.boulevard.io/sales/orders?clientName={encoded_client_name}&limit=100&page=1"
+
+        logger.info(f"Navigating to: {sales_orders_url}")
+
+        # Navigate to the sales orders page
+        await page.goto(sales_orders_url, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+
+        # Wait a moment for the page to load
+        await page.wait_for_timeout(2000)
+
+        logger.info(f"Successfully navigated to sales orders page for client: '{client_name}'")
+
+        # TODO: Add logic to scrape/extract appointment details from the page
+
+    except Exception as e:
+        logger.error(f"Error in getAppointmentDetails for client '{client_name}': {e}", exc_info=True)
 
 
-async def extract_new_client_fields(new_client_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Extract specific fields from new client events with proper formatting.
     Calls getAppointmentDetails for each extracted record.
 
     Args:
+        page: Playwright page object with active session
         new_client_events: List of filtered new client events (with all original fields)
 
     Returns:
@@ -509,6 +532,13 @@ async def extract_new_client_fields(new_client_events: List[Dict[str, Any]]) -> 
                           f"{extracted_record['appointment_date']} - "
                           f"{extracted_record['service_name']} - "
                           f"${extracted_record['price']}")
+
+                # Call getAppointmentDetails for this record
+                await getAppointmentDetails(
+                    page=page,
+                    client_name=extracted_record['client_name'],
+                    appointment_date=extracted_record['appointment_date']
+                )
 
             except Exception as e:
                 logger.warning(f"Error extracting fields from event {idx}: {e}")
@@ -610,7 +640,7 @@ async def main():
                     logger.info(f"{'='*60}")
 
                     # Extract specific fields from new client events
-                    extracted_data = extract_new_client_fields(new_client_events)
+                    extracted_data = await extract_new_client_fields(page, new_client_events)
 
                     if extracted_data:
                         logger.info(f"\n{'='*60}")
