@@ -423,7 +423,7 @@ def filter_new_clients_from_raw(raw_data: Dict[str, Any]) -> List[Dict[str, Any]
         return []
 
 
-async def getAppointmentDetails(page: Page, client_name: str, appointment_date: str) -> None:
+async def getAppointmentDetails(page: Page, client_name: str, appointment_date: str) -> Optional[str]:
     """
     Get appointment details for a specific client and date by navigating to sales orders page.
 
@@ -431,9 +431,21 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
         page: Playwright page object with active session
         client_name: Name of the client
         appointment_date: Appointment date in MM/DD/YYYY format
+
+    Returns:
+        Phone number as a string, or None if not found
     """
     try:
         logger.info(f"Called getAppointmentDetails for client: '{client_name}' on date: '{appointment_date}'")
+
+        # Convert appointment_date from MM/DD/YYYY to YYYY-MM-DD format
+        try:
+            date_obj = datetime.strptime(appointment_date, '%m/%d/%Y')
+            formatted_date = date_obj.strftime('%Y-%m-%d')
+            logger.info(f"Converted date from {appointment_date} to {formatted_date}")
+        except Exception as e:
+            logger.error(f"Failed to convert date format: {e}")
+            formatted_date = appointment_date
 
         # URL encode the client name for safe URL formatting
         encoded_client_name = quote(client_name)
@@ -446,15 +458,89 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
         # Navigate to the sales orders page
         await page.goto(sales_orders_url, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
 
-        # Wait a moment for the page to load
-        await page.wait_for_timeout(2000)
+        # Wait for the table to load
+        await page.wait_for_timeout(3000)
 
         logger.info(f"Successfully navigated to sales orders page for client: '{client_name}'")
 
-        # TODO: Add logic to scrape/extract appointment details from the page
+        # Find and click the row matching the appointment date
+        logger.info(f"Looking for order row with date: {formatted_date}")
+
+        # Wait for the table body to be visible
+        await page.wait_for_selector('tbody[md-body]', timeout=10000)
+
+        # Find all table rows
+        rows = await page.query_selector_all('tr[md-row][ng-repeat*="order in"]')
+
+        logger.info(f"Found {len(rows)} order rows")
+
+        # Search for the row with matching date
+        row_found = False
+        for idx, row in enumerate(rows, 1):
+            # Get all cells in the row
+            cells = await row.query_selector_all('td[md-cell]')
+
+            if len(cells) >= 2:
+                # The date is in the second cell (index 1)
+                date_cell = cells[1]
+                date_text = await date_cell.inner_text()
+                date_text = date_text.strip()
+
+                logger.debug(f"Row {idx} date: '{date_text}'")
+
+                if date_text == formatted_date:
+                    logger.info(f"Found matching row with date: {formatted_date}")
+
+                    # Click the row
+                    await row.click()
+                    logger.info(f"Clicked order row for date: {formatted_date}")
+
+                    # Wait for navigation or modal to open
+                    await page.wait_for_timeout(3000)
+
+                    row_found = True
+                    break
+
+        if not row_found:
+            logger.warning(f"No order row found with date: {formatted_date}")
+            return None
+
+        # Extract phone number from the opened order details
+        logger.info("Extracting phone number from order details...")
+
+        try:
+            # Find the smartphone SVG icon
+            phone_container = await page.query_selector('svg.smartphone_svg__feather-smartphone')
+
+            if phone_container:
+                # Navigate up to find the parent div that contains the phone number
+                # The structure is: svg -> i.icon-container -> div.tw-flex -> div.tw-pl-4 -> span
+                parent_div = await phone_container.evaluate_handle('el => el.closest("div.tw-flex")')
+
+                if parent_div:
+                    # Find the span containing the phone number within this parent div
+                    phone_span = await parent_div.query_selector('div.tw-pl-4 span')
+
+                    if phone_span:
+                        phone_number = await phone_span.inner_text()
+                        phone_number = phone_number.strip()
+                        logger.info(f"Extracted phone number: {phone_number}")
+                        return phone_number
+                    else:
+                        logger.warning("Phone span not found within parent div")
+                else:
+                    logger.warning("Parent div with tw-flex not found")
+            else:
+                logger.warning("Smartphone SVG icon not found on page")
+
+        except Exception as e:
+            logger.error(f"Error extracting phone number: {e}", exc_info=True)
+
+        return None
 
     except Exception as e:
         logger.error(f"Error in getAppointmentDetails for client '{client_name}': {e}", exc_info=True)
+        return None
 
 
 async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -545,12 +631,16 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
                           f"{extracted_record['service_name']} - "
                           f"${extracted_record['price']}")
 
-                # Call getAppointmentDetails for this record
-                await getAppointmentDetails(
+                # Call getAppointmentDetails for this record and get phone number
+                phone_number = await getAppointmentDetails(
                     page=page,
                     client_name=extracted_record['client_name'],
                     appointment_date=extracted_record['appointment_date']
                 )
+
+                # Add phone number to the extracted record
+                extracted_record['phone_number'] = phone_number if phone_number else 'N/A'
+                logger.info(f"Added phone number to record: {phone_number if phone_number else 'Not found'}")
 
             except Exception as e:
                 logger.warning(f"Error extracting fields from event {idx}: {e}")

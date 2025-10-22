@@ -41,6 +41,7 @@ boulevard_automation.log
 
 # Session files
 session.json
+*.json
 
 # OS
 .DS_Store
