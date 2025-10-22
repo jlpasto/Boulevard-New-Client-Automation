@@ -608,6 +608,47 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                     appointment_details['booked_by'] = 'N/A'
                     appointment_details['booked_date'] = 'N/A'
 
+                # Extract provider name from services section
+                logger.info("Extracting provider name from services section...")
+
+                try:
+                    # Find the services section
+                    services_section = await page.query_selector('section.services')
+
+                    if services_section:
+                        # Find the first row in tbody
+                        first_service_row = await services_section.query_selector('tbody tr[ng-repeat]')
+
+                        if first_service_row:
+                            # Find the employee cell (td.employee)
+                            employee_cell = await first_service_row.query_selector('td.employee')
+
+                            if employee_cell:
+                                # Find the span containing the employee name
+                                employee_span = await employee_cell.query_selector('span')
+
+                                if employee_span:
+                                    provider_name = await employee_span.inner_text()
+                                    provider_name = provider_name.strip()
+                                    logger.info(f"Extracted provider_name: {provider_name}")
+                                    appointment_details['provider_name'] = provider_name
+                                else:
+                                    logger.warning("Employee span not found in employee cell")
+                                    appointment_details['provider_name'] = 'N/A'
+                            else:
+                                logger.warning("Employee cell not found in first service row")
+                                appointment_details['provider_name'] = 'N/A'
+                        else:
+                            logger.warning("First service row not found in services section")
+                            appointment_details['provider_name'] = 'N/A'
+                    else:
+                        logger.warning("Services section not found in modal")
+                        appointment_details['provider_name'] = 'N/A'
+
+                except Exception as e:
+                    logger.error(f"Error extracting provider name: {e}", exc_info=True)
+                    appointment_details['provider_name'] = 'N/A'
+
             else:
                 logger.warning("'View Appointment' button not found")
 
