@@ -1,42 +1,35 @@
 [
   {
-    "appointment_id": "0027df96-7599-4699-9ef4-1b2b416c83b6",
-    "client_name": "Jessica Braden",
+    "Number": 1,
+    "New Client Daily Count": "",
     "appointment_date": "10/07/2025",
+    "next_appointment_date": "11/18/2025",
+    "client_name": "Jessica Braden",
+    "phone_number": "(210) 473-2469",
     "service_name": "Tattoo Removal Consultation",
     "price": 100.0,
-    "client_id": "30222c4b-30f4-4659-a1ac-bb42c622f4c9",
-    "staff_id": "52598e4f-6524-455a-a06e-96f2489b29ae",
-    "recurring_appointment_id": null,
-    "phone_number": "(210) 473-2469",
-    "booked_by": "Christina C.",
-    "booked_date": "Mon Oct 6 @ 3:48pm CDT",
+    "membership": "N/A",
+    "visit": 1,
+    "booked_date": "10/06/2025",
+    "front_desk": "Christina C.",
     "provider_name": "Gabrielle Biggi",
-    "hasCharting": true,
-    "hasCompletedPTIntakeForm": true,
-    "pt_intake_form": {
-      "birthday": "03/15/1986",
-      "home_address": "4302 Franklin Adams St\nKingsville, TX 78363",
-      "cell_phone": "210-473-2469",
-      "phone_carrier": "ATT",
-      "occupation": "Occupational Therapist ",
-      "best_contact_method": "Text",
-      "referral_source": "Google",
-      "referral_name": "N/A",
-      "interests": [
-        "Tattoo Removal"
-      ]
-    },
-    "membership_status": "N/A",
-    "membership_start_date": "N/A",
-    "membership_price": "N/A",
-    "scheduled_appointments": [
-      {
-        "service": "PIQo Tattoo with Gabrielle",
-        "date_time": "Tuesday, Nov 18 @ 2:00pm"
-      }
-    ],
-    "gallery_first_date": "10/07/2025",
-    "hasPhotos": true
+    "date_treatment_plan_set": "",
+    "photos": "Yes",
+    "charting": "No",
+    "occupation": "",
+    "referral_source": "",
+    "referral_source_2": "N/A",
+    "referral_name": "",
+    "form_compliance": "Not Completed",
+    "interest_1": "",
+    "interest_2": "",
+    "interest_3": "",
+    "interest_4": "",
+    "interest_5": "",
+    "interest_6": "",
+    "interest_7": "",
+    "interest_8": "",
+    "interest_9": "",
+    "interest_10": ""
   }
 ]

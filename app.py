@@ -1311,14 +1311,6 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
             logger.info(f"Added gallery_first_date to record: {extracted_record['gallery_first_date']}")
             logger.info(f"Added hasPhotos to record: {extracted_record['hasPhotos']}")
 
-
-        # Save extracted data to file
-        extracted_filename = "new_client_events_extracted.json"
-
-        with open(extracted_filename, 'w', encoding='utf-8') as f:
-            json.dump(extracted_data, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"\nExtracted data saved to: {extracted_filename}")
         logger.info("=" * 60)
         logger.info(f"Successfully extracted {len(extracted_data)} new client records")
         logger.info("=" * 60)
@@ -1328,6 +1320,120 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
     except Exception as e:
         logger.error(f"Error extracting new client fields: {e}", exc_info=True)
         return []
+
+
+def clean_data(extracted_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Clean and transform extracted data into the final format.
+
+    Args:
+        extracted_data: List of extracted client records
+
+    Returns:
+        List of cleaned records with transformed fields
+    """
+    import re
+
+    cleaned_records = []
+
+    # Get current year dynamically
+    current_year = datetime.now().year
+
+    for idx, record in enumerate(extracted_data, start=1):
+        # Extract next appointment date from scheduled_appointments
+        next_appointment_date = ""
+        scheduled_appointments = record.get('scheduled_appointments', [])
+        if scheduled_appointments and len(scheduled_appointments) > 0:
+            # Get first scheduled appointment's date_time
+            date_time_str = scheduled_appointments[0].get('date_time', '')
+            if date_time_str and date_time_str != 'N/A':
+                # Extract date from format like "Tuesday, Nov 18 @ 2:00pm"
+                # Match pattern: Month Day
+                match = re.search(r'([A-Za-z]+)\s+(\d+)', date_time_str)
+                if match:
+                    month_str = match.group(1)
+                    day_str = match.group(2)
+
+                    # Convert month name to number
+                    month_map = {
+                        'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+                        'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                        'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12',
+                        'January': '01', 'February': '02', 'March': '03', 'April': '04',
+                        'June': '06', 'July': '07', 'August': '08', 'September': '09',
+                        'October': '10', 'November': '11', 'December': '12'
+                    }
+
+                    month_num = month_map.get(month_str, '01')
+                    day_num = day_str.zfill(2)
+                    next_appointment_date = f"{month_num}/{day_num}/{current_year}"
+
+        # Format booked_date from "Mon Oct 6 @ 3:48pm CDT" to "10/06/2025"
+        booked_date_formatted = ""
+        booked_date = record.get('booked_date', '')
+        if booked_date and booked_date != 'N/A':
+            # Extract date from format like "Mon Oct 6 @ 3:48pm CDT"
+            match = re.search(r'([A-Za-z]+)\s+(\d+)', booked_date)
+            if match:
+                month_str = match.group(1)
+                day_str = match.group(2)
+
+                # Convert month name to number
+                month_map = {
+                    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+                    'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                    'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+                }
+
+                month_num = month_map.get(month_str, '01')
+                day_num = day_str.zfill(2)
+                booked_date_formatted = f"{month_num}/{day_num}/{current_year}"
+            else:
+                booked_date_formatted = booked_date
+
+        # Get PT intake form data
+        pt_intake_form = record.get('pt_intake_form', {})
+        interests = pt_intake_form.get('interests', []) if pt_intake_form else []
+
+        # Build cleaned record
+        cleaned_record = {
+            'number': idx,
+            'new_client_daily_count': '',
+            'appointment_date': record.get('appointment_date', 'N/A'),
+            'next_appointment_date': next_appointment_date,
+            'client_name': record.get('client_name', 'N/A'),
+            'phone_number': record.get('phone_number', 'N/A'),
+            'service_name': record.get('service_name', 'N/A'),
+            'price': record.get('price', 0.0),
+            'membership': record.get('membership_start_date', 'N/A'),
+            'visit': record.get('visit_count', 1),
+            'booked_date': booked_date_formatted,
+            'front_desk': record.get('booked_by', 'N/A'),
+            'provider_name': record.get('provider_name', 'N/A'),
+            'date_treatment_plan_set': '',
+            'photos': 'Yes' if record.get('hasPhotos', False) else 'No',
+            'charting': 'Yes' if record.get('hasCharting', False) else 'No',
+            'occupation': pt_intake_form.get('occupation', '') if pt_intake_form else '',
+            'referral_source': pt_intake_form.get('referral_source', '') if pt_intake_form else '',
+            'referral_source_2': 'N/A',
+            'referral_name': pt_intake_form.get('referral_name', '') if pt_intake_form else '',
+            'form_compliance': 'Completed' if record.get('hasCompletedPTIntakeForm', False) else 'Not Completed',
+            'interest_1': interests[0] if len(interests) > 0 else '',
+            'interest_2': interests[1] if len(interests) > 1 else '',
+            'interest_3': interests[2] if len(interests) > 2 else '',
+            'interest_4': interests[3] if len(interests) > 3 else '',
+            'interest_5': interests[4] if len(interests) > 4 else '',
+            'interest_6': interests[5] if len(interests) > 5 else '',
+            'interest_7': interests[6] if len(interests) > 6 else '',
+            'interest_8': interests[7] if len(interests) > 7 else '',
+            'interest_9': interests[8] if len(interests) > 8 else '',
+            'interest_10': interests[9] if len(interests) > 9 else ''
+        }
+
+        cleaned_records.append(cleaned_record)
+
+    logger.info(f"Cleaned {len(cleaned_records)} records")
+    return cleaned_records
 
 
 async def main():
@@ -1402,12 +1508,25 @@ async def main():
                     extracted_data = await extract_new_client_fields(page, new_client_events)
 
                     if extracted_data:
+                        # Clean the extracted data
                         logger.info(f"\n{'='*60}")
-                        logger.info(f"FINAL SUMMARY: Processed {len(extracted_data)} new client records")
+                        logger.info("Cleaning extracted data...")
+                        logger.info(f"{'='*60}")
+                        cleaned_data = clean_data(extracted_data)
+
+                        # Save cleaned data to JSON file
+                        extracted_filename = "new_client_events_extracted.json"
+                        with open(extracted_filename, 'w', encoding='utf-8') as f:
+                            json.dump(cleaned_data, f, indent=2, ensure_ascii=False)
+
+                        logger.info(f"\nCleaned data saved to: {extracted_filename}")
+
+                        logger.info(f"\n{'='*60}")
+                        logger.info(f"FINAL SUMMARY: Processed {len(cleaned_data)} new client records")
                         logger.info(f"{'='*60}")
                         logger.info("\nGenerated files:")
                         logger.info("  Output file:")
-                        logger.info("    - new_client_events_extracted.json (extracted client data with specific fields)")
+                        logger.info("    - new_client_events_extracted.json (cleaned client data with specific fields)")
                     else:
                         logger.warning("Failed to extract fields from new client events")
                 else:
