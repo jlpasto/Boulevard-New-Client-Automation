@@ -1829,9 +1829,9 @@ async def main():
             else:
                 logger.error("Failed to fetch calendar events from API")
 
-            # Keep browser open for 10 seconds to verify
-            logger.info("Browser will stay open for 10 seconds...")
-            await page.wait_for_timeout(10000)
+            # Keep browser open for 2 seconds to verify
+            logger.info("Browser will stay open for 2 seconds...")
+            await page.wait_for_timeout(2000)
 
 
 
