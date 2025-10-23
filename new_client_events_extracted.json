@@ -26,6 +26,11 @@
       "interests": [
         "Tattoo Removal"
       ]
+    },
+    "membership": {
+      "status": "N/A",
+      "start_date": "N/A",
+      "price": "N/A"
     }
   }
 ]
