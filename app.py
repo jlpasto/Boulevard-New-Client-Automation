@@ -1329,12 +1329,79 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
         return []
 
 
-def clean_data(extracted_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def get_last_row_number_from_sheets() -> int:
+    """
+    Fetch the last row number from Google Sheets (yesterday's month sheet).
+
+    Returns:
+        int: The last number value from the 'number' column, or 0 if sheet is empty or error occurs
+    """
+    try:
+        # Check if credentials are set
+        if not GOOGLE_CREDENTIALS_B64 or not SPREADSHEET_ID:
+            logger.warning("Google Sheets credentials not configured, starting from 1")
+            return 0
+
+        # Decode base64 credentials
+        credentials_json = base64.b64decode(GOOGLE_CREDENTIALS_B64).decode('utf-8')
+        credentials_dict = json.loads(credentials_json)
+
+        # Set up Google Sheets authentication
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets.readonly',
+            'https://www.googleapis.com/auth/drive.readonly'
+        ]
+
+        credentials = Credentials.from_service_account_info(credentials_dict, scopes=scopes)
+        gc = gspread.authorize(credentials)
+
+        # Open the spreadsheet
+        spreadsheet = gc.open_by_key(SPREADSHEET_ID)
+
+        # Determine target sheet based on yesterday's date
+        yesterday = datetime.now() - timedelta(days=1)
+        target_month = yesterday.strftime("%B")  # Full month name (e.g., "October")
+
+        logger.info(f"Fetching last row number from {target_month} sheet...")
+
+        # Get the target worksheet
+        try:
+            worksheet = spreadsheet.worksheet(target_month)
+        except Exception:
+            logger.warning(f"Sheet '{target_month}' not found, starting from 1")
+            return 0
+
+        # Get all values from the first column (number column)
+        all_values = worksheet.col_values(1)  # Column A (number column)
+
+        if len(all_values) <= 1:  # Only header or empty
+            logger.info("Sheet is empty or only has headers, starting from 1")
+            return 0
+
+        # Get the last value (skip header)
+        last_value = all_values[-1]
+
+        # Try to convert to integer
+        try:
+            last_number = int(last_value)
+            logger.info(f"Last row number in {target_month} sheet: {last_number}")
+            return last_number
+        except ValueError:
+            logger.warning(f"Could not parse last row number '{last_value}', starting from 1")
+            return 0
+
+    except Exception as e:
+        logger.error(f"Error fetching last row number from Google Sheets: {e}", exc_info=True)
+        return 0
+
+
+def clean_data(extracted_data: List[Dict[str, Any]], start_number: int = 1) -> List[Dict[str, Any]]:
     """
     Clean and transform extracted data into the final format.
 
     Args:
         extracted_data: List of extracted client records
+        start_number: Starting number for the 'number' field (default: 1)
 
     Returns:
         List of cleaned records with transformed fields
@@ -1346,7 +1413,7 @@ def clean_data(extracted_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     # Get current year dynamically
     current_year = datetime.now().year
 
-    for idx, record in enumerate(extracted_data, start=1):
+    for idx, record in enumerate(extracted_data, start=start_number):
         # Extract next appointment date from scheduled_appointments
         next_appointment_date = ""
         scheduled_appointments = record.get('scheduled_appointments', [])
@@ -1421,9 +1488,9 @@ def clean_data(extracted_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             'photos': 'Yes' if record.get('hasPhotos', False) else 'No',
             'charting': 'Yes' if record.get('hasCharting', False) else 'No',
             'occupation': pt_intake_form.get('occupation', '') if pt_intake_form else '',
-            'referral_source': pt_intake_form.get('referral_source', '') if pt_intake_form else '',
+            'referral_source': pt_intake_form.get('referral_source', 'N/A') if pt_intake_form else 'N/A',
             'referral_source_2': 'N/A',
-            'referral_name': pt_intake_form.get('referral_name', '') if pt_intake_form else '',
+            'referral_name': pt_intake_form.get('referral_name', 'N/A') if pt_intake_form else 'N/A',
             'form_compliance': 'Completed' if record.get('hasCompletedPTIntakeForm', False) else 'Not Completed',
             'interest_1': interests[0] if len(interests) > 0 else '',
             'interest_2': interests[1] if len(interests) > 1 else '',
@@ -1639,11 +1706,19 @@ async def main():
                     extracted_data = await extract_new_client_fields(page, new_client_events)
 
                     if extracted_data:
+                        # Get the last row number from Google Sheets
+                        logger.info(f"\n{'='*60}")
+                        logger.info("Fetching last row number from Google Sheets...")
+                        logger.info(f"{'='*60}")
+                        last_row_number = get_last_row_number_from_sheets()
+                        start_number = last_row_number + 1
+                        logger.info(f"Starting number for new records: {start_number}")
+
                         # Clean the extracted data
                         logger.info(f"\n{'='*60}")
                         logger.info("Cleaning extracted data...")
                         logger.info(f"{'='*60}")
-                        cleaned_data = clean_data(extracted_data)
+                        cleaned_data = clean_data(extracted_data, start_number=start_number)
 
                         # Save cleaned data to JSON file
                         extracted_filename = "new_client_events_extracted.json"
