@@ -486,15 +486,15 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
             # Wait for navigation or modal to open
             await page.wait_for_timeout(3000)
 
-            # Check if "View Appointment" link exists
-            view_appointment_link = await page.query_selector('a:has-text("View Appointment")')
+            # Check if "View Appointment" button exists
+            view_appointment_button = await page.query_selector('button.link-module_link__3ZzUy:has-text("View Appointment")')
 
-            if view_appointment_link:
-                logger.info(f"✓ Found 'View Appointment' link in row {idx}!")
+            if view_appointment_button:
+                logger.info(f"✓ Found 'View Appointment' button in row {idx}!")
                 view_appointment_found = True
                 break
             else:
-                logger.info(f"✗ No 'View Appointment' link in row {idx}. Going back to try next row...")
+                logger.info(f"✗ No 'View Appointment' button in row {idx}. Going back to try next row...")
 
                 # Go back to the sales orders page
                 await page.go_back()
@@ -509,7 +509,7 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                 rows = await page.query_selector_all('tr[md-row][ng-repeat*="order in"]')
 
         if not view_appointment_found:
-            logger.warning(f"None of the {len(matching_rows)} matching rows contain 'View Appointment' link")
+            logger.warning(f"None of the {len(matching_rows)} matching rows contain 'View Appointment' button")
             return None
 
         logger.info("Proceeding with data extraction from the correct appointment...")
@@ -552,11 +552,11 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
             logger.error(f"Error extracting phone number: {e}", exc_info=True)
             appointment_details['phone_number'] = 'N/A'
 
-        # Click the "View Appointment" button
-        logger.info("Looking for 'View Appointment' button...")
+        # Click the "View Appointment" button (already found in the loop above)
+        logger.info("Clicking 'View Appointment' button to open modal...")
 
         try:
-            # Find the View Appointment button
+            # Re-query the button to ensure we have a fresh reference
             view_appointment_button = await page.query_selector('button.link-module_link__3ZzUy:has-text("View Appointment")')
 
             if view_appointment_button:
