@@ -1153,8 +1153,19 @@ async def getMembershipInfo(page: Page, client_id: str) -> Dict[str, Any]:
                             date_div = await parent.query_selector('div.css-164r41r')
                             if date_div:
                                 date_text = await date_div.text_content()
-                                membership_info['start_date'] = date_text.strip() if date_text else 'N/A'
-                                logger.info(f"Extracted start date: {membership_info['start_date']}")
+                                date_text = date_text.strip() if date_text else 'N/A'
+
+                                # Convert date format from "July 31, 2025" to "7/31/2025"
+                                if date_text != 'N/A':
+                                    try:
+                                        parsed_date = datetime.strptime(date_text, "%B %d, %Y")
+                                        membership_info['start_date'] = parsed_date.strftime("%m/%d/%Y")
+                                        logger.info(f"Extracted and formatted start date: {membership_info['start_date']}")
+                                    except ValueError as ve:
+                                        logger.warning(f"Could not parse start date '{date_text}': {ve}")
+                                        membership_info['start_date'] = date_text  # Keep original if parsing fails
+                                else:
+                                    membership_info['start_date'] = 'N/A'
                 except Exception as e:
                     logger.error(f"Error extracting membership start date: {e}", exc_info=True)
 
