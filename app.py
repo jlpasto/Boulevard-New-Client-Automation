@@ -3,9 +3,12 @@ from dotenv import load_dotenv
 import logging
 import os
 import json
-from datetime import datetime
+import base64
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from urllib.parse import quote
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Configure logging
 logging.basicConfig(
@@ -28,6 +31,10 @@ CALENDAR_URL = "https://dashboard.boulevard.io/calendar"
 EMAIL = os.getenv("BLVD_EMAIL")
 PASSWORD = os.getenv("BLVD_PASSWORD")
 SESSION_FILE = "session.json"
+
+# Google Sheets Configuration
+GOOGLE_CREDENTIALS_B64 = os.getenv("GOOGLE_CREDENTIALS_B64")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 
 # Configuration constants
 MAX_LOGIN_ATTEMPTS = 3
@@ -1436,6 +1443,130 @@ def clean_data(extracted_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return cleaned_records
 
 
+def append_to_google_sheets(cleaned_data: List[Dict[str, Any]]) -> bool:
+    """
+    Append cleaned data to Google Sheets.
+    Creates monthly sheets (October, November, December) if they don't exist.
+    Adds headers if they don't exist.
+    Appends data to the sheet corresponding to yesterday's date.
+
+    Args:
+        cleaned_data: List of cleaned records to append
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        logger.info("=" * 60)
+        logger.info("Starting Google Sheets integration...")
+        logger.info("=" * 60)
+
+        # Check if credentials are set
+        if not GOOGLE_CREDENTIALS_B64 or not SPREADSHEET_ID:
+            logger.error("Google Sheets credentials not configured in .env file")
+            logger.error("Please set GOOGLE_CREDENTIALS_B64 and SPREADSHEET_ID")
+            return False
+
+        # Decode base64 credentials
+        try:
+            credentials_json = base64.b64decode(GOOGLE_CREDENTIALS_B64).decode('utf-8')
+            credentials_dict = json.loads(credentials_json)
+        except Exception as e:
+            logger.error(f"Error decoding Google credentials: {e}")
+            return False
+
+        # Set up Google Sheets authentication
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+
+        credentials = Credentials.from_service_account_info(credentials_dict, scopes=scopes)
+        gc = gspread.authorize(credentials)
+
+        # Open the spreadsheet
+        try:
+            spreadsheet = gc.open_by_key(SPREADSHEET_ID)
+            logger.info(f"Successfully opened spreadsheet: {spreadsheet.title}")
+        except Exception as e:
+            logger.error(f"Error opening spreadsheet: {e}")
+            return False
+
+        # Determine target sheet based on yesterday's date
+        yesterday = datetime.now() - timedelta(days=1)
+        target_month = yesterday.strftime("%B")  # Full month name (e.g., "October")
+
+        logger.info(f"Target month for data: {target_month} (yesterday was {yesterday.strftime('%Y-%m-%d')})")
+
+        # List of month sheets to ensure exist
+        month_sheets = ["October", "November", "December"]
+
+        # Create sheets if they don't exist
+        existing_sheets = [ws.title for ws in spreadsheet.worksheets()]
+
+        for month in month_sheets:
+            if month not in existing_sheets:
+                logger.info(f"Creating sheet: {month}")
+                spreadsheet.add_worksheet(title=month, rows=1000, cols=30)
+            else:
+                logger.info(f"Sheet already exists: {month}")
+
+        # Get the target worksheet
+        try:
+            worksheet = spreadsheet.worksheet(target_month)
+            logger.info(f"Using worksheet: {target_month}")
+        except Exception as e:
+            logger.error(f"Error accessing worksheet '{target_month}': {e}")
+            return False
+
+        # Define headers (capitalized version of field names)
+        if cleaned_data:
+            # Get field names from first record and convert to Title Case
+            headers = [key.replace('_', ' ').title() for key in cleaned_data[0].keys()]
+
+            # Check if headers exist
+            existing_values = worksheet.get_all_values()
+
+            if not existing_values or not existing_values[0]:
+                # No headers exist, add them
+                logger.info("Adding headers to worksheet")
+                worksheet.insert_row(headers, index=1)
+            else:
+                # Verify headers match
+                existing_headers = existing_values[0]
+                if existing_headers != headers:
+                    logger.warning(f"Existing headers don't match. Expected: {headers}, Found: {existing_headers}")
+                    # Update headers
+                    worksheet.update('A1', [headers])
+                    logger.info("Updated headers to match data structure")
+
+            # Prepare data rows
+            data_rows = []
+            for record in cleaned_data:
+                row = [record.get(key, '') for key in cleaned_data[0].keys()]
+                data_rows.append(row)
+
+            # Append data rows
+            if data_rows:
+                logger.info(f"Appending {len(data_rows)} rows to {target_month} sheet")
+                worksheet.append_rows(data_rows, value_input_option='USER_ENTERED')
+                logger.info(f"Successfully appended {len(data_rows)} records to Google Sheets")
+            else:
+                logger.warning("No data rows to append")
+
+            logger.info("=" * 60)
+            logger.info("Google Sheets integration completed successfully")
+            logger.info("=" * 60)
+            return True
+        else:
+            logger.warning("No cleaned data to append")
+            return False
+
+    except Exception as e:
+        logger.error(f"Error appending to Google Sheets: {e}", exc_info=True)
+        return False
+
+
 async def main():
     """
     Main function to perform login and navigate to calendar page.
@@ -1521,12 +1652,21 @@ async def main():
 
                         logger.info(f"\nCleaned data saved to: {extracted_filename}")
 
+                        # Append to Google Sheets
+                        sheets_success = append_to_google_sheets(cleaned_data)
+
                         logger.info(f"\n{'='*60}")
                         logger.info(f"FINAL SUMMARY: Processed {len(cleaned_data)} new client records")
                         logger.info(f"{'='*60}")
                         logger.info("\nGenerated files:")
                         logger.info("  Output file:")
                         logger.info("    - new_client_events_extracted.json (cleaned client data with specific fields)")
+                        if sheets_success:
+                            logger.info("  Google Sheets:")
+                            logger.info("    - Data successfully appended to monthly sheet")
+                        else:
+                            logger.warning("  Google Sheets:")
+                            logger.warning("    - Failed to append data (check logs above for details)")
                     else:
                         logger.warning("Failed to extract fields from new client events")
                 else:
