@@ -1,0 +1,8 @@
+5. Deploy on Render
+Option A: Using render.yaml (Recommended)
+
+Go to dashboard.render.com
+Click "New +" → "Blueprint"
+Connect your Git repository
+Render will automatically detect your render.yaml
+Click "Apply"

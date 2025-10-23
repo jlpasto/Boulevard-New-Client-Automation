@@ -1,0 +1,10 @@
+services:
+  - type: cron
+    name: my-playwright-job
+    env: docker
+    schedule: "0 2 * * *"  # Adjust to your preferred time
+    dockerfilePath: ./Dockerfile
+    # Optional: Add environment variables
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
