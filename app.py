@@ -698,6 +698,55 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                     logger.error(f"Error extracting charting status: {e}", exc_info=True)
                     appointment_details['hasCharting'] = False
 
+                # Extract New PT Intake Form completion status from Forms section
+                logger.info("Checking for completed 'New PT Intake Form' in Forms section...")
+
+                try:
+                    # Step 1: Find the Forms heading span
+                    forms_heading = await page.query_selector('span.MuiTypography-textParagraphLargeHeavy:has-text("Forms")')
+
+                    if not forms_heading:
+                        logger.warning("Forms heading not found")
+                        appointment_details['hasCompletedPTIntakeForm'] = False
+                    else:
+                        # Step 2: Get the parent container of the Forms heading
+                        forms_parent = await forms_heading.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
+
+                        if not forms_parent:
+                            logger.warning("Forms parent container not found")
+                            appointment_details['hasCompletedPTIntakeForm'] = False
+                        else:
+                            # Step 3: Navigate to the grandparent to get access to sibling divs
+                            forms_grandparent = await forms_parent.query_selector('xpath=..')
+
+                            if not forms_grandparent:
+                                logger.warning("Forms grandparent container not found")
+                                appointment_details['hasCompletedPTIntakeForm'] = False
+                            else:
+                                # Step 4: Find all divs with data-testid containing "form-list-item" within this section
+                                form_items = await forms_grandparent.query_selector_all('div[data-testid*="form-list-item"]')
+
+                                logger.info(f"Found {len(form_items)} form item(s)")
+
+                                has_completed_pt_intake = False
+
+                                # Step 5: Check each form item for "New PT Intake Form" AND "Completed"
+                                for item in form_items:
+                                    item_text = await item.text_content()
+                                    if item_text and "New PT Intake Form" in item_text and "Completed" in item_text:
+                                        logger.info("Found completed 'New PT Intake Form'")
+                                        has_completed_pt_intake = True
+                                        break
+
+                                appointment_details['hasCompletedPTIntakeForm'] = has_completed_pt_intake
+
+                                if not has_completed_pt_intake:
+                                    logger.info("'New PT Intake Form' is not completed or not found")
+
+                except Exception as e:
+                    logger.error(f"Error extracting PT Intake Form status: {e}", exc_info=True)
+                    appointment_details['hasCompletedPTIntakeForm'] = False
+
             else:
                 logger.warning("'View Appointment' button not found")
 
