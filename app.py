@@ -649,6 +649,55 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                     logger.error(f"Error extracting provider name: {e}", exc_info=True)
                     appointment_details['provider_name'] = 'N/A'
 
+                # Extract charting status from Charts section
+                logger.info("Checking for completed charts in Charts section...")
+
+                try:
+                    # Step 1: Find the Charts heading span
+                    charts_heading = await page.query_selector('span.MuiTypography-textParagraphLargeHeavy:has-text("Charts")')
+
+                    if not charts_heading:
+                        logger.warning("Charts heading not found")
+                        appointment_details['hasCharting'] = False
+                    else:
+                        # Step 2: Get the parent container of the Charts heading
+                        charts_parent = await charts_heading.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
+
+                        if not charts_parent:
+                            logger.warning("Charts parent container not found")
+                            appointment_details['hasCharting'] = False
+                        else:
+                            # Step 3: Navigate to the grandparent to get access to sibling divs
+                            charts_grandparent = await charts_parent.query_selector('xpath=..')
+
+                            if not charts_grandparent:
+                                logger.warning("Charts grandparent container not found")
+                                appointment_details['hasCharting'] = False
+                            else:
+                                # Step 4: Find all divs with data-testid containing "form-list-item" within this section
+                                chart_items = await charts_grandparent.query_selector_all('div[data-testid*="form-list-item"]')
+
+                                logger.info(f"Found {len(chart_items)} chart item(s)")
+
+                                has_completed = False
+
+                                # Step 5: Check each chart item for "Completed" text
+                                for item in chart_items:
+                                    item_text = await item.text_content()
+                                    if item_text and "Completed" in item_text:
+                                        logger.info("Found completed chart")
+                                        has_completed = True
+                                        break
+
+                                appointment_details['hasCharting'] = has_completed
+
+                                if not has_completed:
+                                    logger.info("No completed charts found")
+
+                except Exception as e:
+                    logger.error(f"Error extracting charting status: {e}", exc_info=True)
+                    appointment_details['hasCharting'] = False
+
             else:
                 logger.warning("'View Appointment' button not found")
 
