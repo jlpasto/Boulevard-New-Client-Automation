@@ -42,7 +42,7 @@ LOGIN_TIMEOUT = 30000  # 30 seconds
 PAGE_LOAD_TIMEOUT = 15000  # 15 seconds
 
 # Testing configuration
-TEST_ENV = True  # Set to True to test with only 1 record, False for production
+TEST_ENV = False  # Set to True to test with only 1 record, False for production
 
 
 async def is_on_login_page(page: Page) -> bool:
@@ -1415,7 +1415,7 @@ def clean_data(extracted_data: List[Dict[str, Any]], start_number: int = 1) -> L
 
     for idx, record in enumerate(extracted_data, start=start_number):
         # Extract next appointment date from scheduled_appointments
-        next_appointment_date = ""
+        next_appointment_date = "N/A"
         scheduled_appointments = record.get('scheduled_appointments', [])
         if scheduled_appointments and len(scheduled_appointments) > 0:
             # Get first scheduled appointment's date_time
