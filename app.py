@@ -916,6 +916,58 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                                                     logger.error(f"Error extracting referral source: {e}", exc_info=True)
                                                     pt_intake_details['referral_source'] = 'N/A'
 
+                                                # Extract Referral Name
+                                                try:
+                                                    referral_name_label = await page.query_selector('label:has-text("Name of referral")')
+                                                    if referral_name_label:
+                                                        label_for = await referral_name_label.get_attribute('for')
+                                                        if label_for:
+                                                            referral_name_input = await page.query_selector(f'input#{label_for}')
+                                                            if referral_name_input:
+                                                                referral_name_value = await referral_name_input.get_attribute('value')
+                                                                pt_intake_details['referral_name'] = referral_name_value if referral_name_value else 'N/A'
+                                                                logger.info(f"Extracted referral name: {pt_intake_details['referral_name']}")
+                                                            else:
+                                                                pt_intake_details['referral_name'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['referral_name'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['referral_name'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting referral name: {e}", exc_info=True)
+                                                    pt_intake_details['referral_name'] = 'N/A'
+
+                                                # Extract All Interests (checked checkboxes)
+                                                try:
+                                                    interests_label = await page.query_selector('label:has-text("All Interests")')
+                                                    if interests_label:
+                                                        # Find parent container
+                                                        interests_container = await interests_label.query_selector('xpath=ancestor::div[contains(@class, "MuiFormControl-root")][1]')
+                                                        if interests_container:
+                                                            # Find all checked checkboxes within this container
+                                                            checked_checkboxes = await interests_container.query_selector_all('input[type="checkbox"]:checked')
+
+                                                            interests_list = []
+                                                            for checkbox in checked_checkboxes:
+                                                                # Get the parent label to find the interest text
+                                                                parent_label = await checkbox.query_selector('xpath=ancestor::label[1]')
+                                                                if parent_label:
+                                                                    interest_text = await parent_label.text_content()
+                                                                    # Clean up the text to extract just the interest name
+                                                                    interest_text = interest_text.strip()
+                                                                    if interest_text:
+                                                                        interests_list.append(interest_text)
+
+                                                            pt_intake_details['interests'] = interests_list if interests_list else []
+                                                            logger.info(f"Extracted {len(interests_list)} interest(s): {interests_list}")
+                                                        else:
+                                                            pt_intake_details['interests'] = []
+                                                    else:
+                                                        pt_intake_details['interests'] = []
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting interests: {e}", exc_info=True)
+                                                    pt_intake_details['interests'] = []
+
                                                 # Add PT Intake details to appointment_details
                                                 appointment_details['pt_intake_form'] = pt_intake_details
                                                 logger.info(f"Successfully extracted PT Intake Form details")
