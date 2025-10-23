@@ -9,6 +9,7 @@ from typing import Dict, List, Any, Optional
 from urllib.parse import quote
 import gspread
 from google.oauth2.service_account import Credentials
+import pytz
 
 # Configure logging
 logging.basicConfig(
@@ -42,7 +43,7 @@ LOGIN_TIMEOUT = 30000  # 30 seconds
 PAGE_LOAD_TIMEOUT = 15000  # 15 seconds
 
 # Testing configuration
-TEST_ENV = True  # Set to True to test with limited records, False for production
+TEST_ENV = False  # Set to True to test with limited records, False for production
 TEST_RECORD_LIMIT = 10  # Number of records to process in test mode
 
 
@@ -1717,7 +1718,7 @@ async def main():
         async with async_playwright() as p:
             logger.info("Launching browser...")
             browser = await p.chromium.launch(
-                headless=False,
+                headless=True,
                 devtools=False,
                 args=['--start-maximized']  # Start browser maximized
             )
@@ -1744,8 +1745,21 @@ async def main():
             # Configuration for API call
             BUSINESS_ID = "bbac5187-6f75-40d0-ae6e-97288b3b160b"
             LOCATION_ID = "6df4e391-8fe5-4262-adad-ac07ce221244"
-            START_DATE = "2025-10-01"
-            END_DATE = "2025-10-22"
+
+            # Define timezone (Central Time)
+            central = pytz.timezone('America/Chicago')
+
+            # Get current date in Central timezone
+            now_central = datetime.now(central)
+
+            # Calculate yesterday (today - 1 day)
+            yesterday = now_central - timedelta(days=1)
+
+            # Format as strings
+            START_DATE = yesterday.strftime("%Y-%m-%d")
+            END_DATE = yesterday.strftime("%Y-%m-%d")
+
+            logger.info(f"Processing date range: {START_DATE} to {END_DATE} (Central Time)")
 
             # Fetch events from API
             events_data = await fetch_calendar_events(
