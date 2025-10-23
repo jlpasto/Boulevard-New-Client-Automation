@@ -587,7 +587,7 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
             view_appointment_button = await page.query_selector('button.link-module_link__3ZzUy:has-text("View Appointment")')
 
             if view_appointment_button:
-                logger.info(f"✓ Found 'View Appointment' button in row {idx}!")
+                logger.info(f"[SUCCESS] Found 'View Appointment' button in row {idx}!")
                 logger.info("Proceeding with data extraction from the correct appointment...")
 
                 # Initialize details dictionary
@@ -1013,7 +1013,7 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                 logger.info("Successfully extracted all appointment details from the correct row")
                 break
             else:
-                logger.info(f"✗ No 'View Appointment' button in row {idx}. Will try next row...")
+                logger.info(f"[NOT FOUND] No 'View Appointment' button in row {idx}. Will try next row...")
                 # Navigation back to sales orders URL will happen at the start of next iteration
 
         # Check if we found the correct row
