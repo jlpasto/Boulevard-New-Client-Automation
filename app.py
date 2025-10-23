@@ -266,23 +266,7 @@ async def fetch_calendar_events(
 
         # Parse JSON response
         data = await response.json()
-
-        # Save raw response to file with consistent name
-        response_filename = "calendar_events_response.json"
-
-        with open(response_filename, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"Raw API response saved to: {response_filename}")
-
-        # Also save a timestamped backup
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"calendar_events_response_{timestamp}.json"
-
-        with open(backup_filename, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"Backup saved to: {backup_filename}")
+        logger.info(f"Received {len(data)} events from API")
 
         return data
 
@@ -393,24 +377,7 @@ def filter_new_clients_from_raw(raw_data: Dict[str, Any]) -> List[Dict[str, Any]
 
                 logger.info(f"{idx}. {client_name} - {start_time} - Service: {service}")
             logger.info("-" * 60)
-
-            # Save new client events to separate file (with ALL original fields)
-            new_clients_filename = "new_client_events.json"
-
-            with open(new_clients_filename, 'w', encoding='utf-8') as f:
-                json.dump(new_client_events, f, indent=2, ensure_ascii=False)
-
-            logger.info(f"New client events saved to: {new_clients_filename}")
-
-            # Also save a timestamped backup
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_filename = f"new_client_events_{timestamp}.json"
-
-            with open(backup_filename, 'w', encoding='utf-8') as f:
-                json.dump(new_client_events, f, indent=2, ensure_ascii=False)
-
-            logger.info(f"Backup saved to: {backup_filename}")
-            logger.info(f"Files contain {len(new_client_events)} events with ALL original fields")
+            logger.info(f"Found {len(new_client_events)} new client events")
         else:
             logger.info("No new client events found in the date range")
 
@@ -1351,15 +1318,6 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
             json.dump(extracted_data, f, indent=2, ensure_ascii=False)
 
         logger.info(f"\nExtracted data saved to: {extracted_filename}")
-
-        # Also save timestamped backup
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"new_client_events_extracted_{timestamp}.json"
-
-        with open(backup_filename, 'w', encoding='utf-8') as f:
-            json.dump(extracted_data, f, indent=2, ensure_ascii=False)
-
-        logger.info(f"Backup saved to: {backup_filename}")
         logger.info("=" * 60)
         logger.info(f"Successfully extracted {len(extracted_data)} new client records")
         logger.info("=" * 60)
@@ -1447,18 +1405,8 @@ async def main():
                         logger.info(f"FINAL SUMMARY: Processed {len(extracted_data)} new client records")
                         logger.info(f"{'='*60}")
                         logger.info("\nGenerated files:")
-                        logger.info("  Main files (always same name):")
-                        logger.info("    - calendar_events_response.json (all raw events)")
-                        logger.info("    - new_client_events.json (filtered new clients - full data)")
-                        logger.info("    - new_client_events_extracted.json (SPECIFIC FIELDS ONLY)")
-                        logger.info("  Backup files (timestamped):")
-                        logger.info("    - calendar_events_response_YYYYMMDD_HHMMSS.json")
-                        logger.info("    - new_client_events_YYYYMMDD_HHMMSS.json")
-                        logger.info("    - new_client_events_extracted_YYYYMMDD_HHMMSS.json")
-                        logger.info("\n  To re-process existing data, use:")
-                        logger.info("    data = read_json_file('calendar_events_response.json')")
-                        logger.info("    new_clients = filter_new_clients_from_raw(data)")
-                        logger.info("    extracted = extract_new_client_fields(new_clients)")
+                        logger.info("  Output file:")
+                        logger.info("    - new_client_events_extracted.json (extracted client data with specific fields)")
                     else:
                         logger.warning("Failed to extract fields from new client events")
                 else:
