@@ -1246,7 +1246,8 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
                     'price': event.get('price', 0.0),
                     'client_id': event.get('client_id', 'N/A'),
                     'staff_id': event.get('staff_id', 'N/A'),
-                    'recurring_appointment_id': event.get('recurring_appointment_id', None)
+                    'recurring_appointment_id': event.get('recurring_appointment_id', None),
+                    'visit_count': 1
                 }
 
                 extracted_data.append(extracted_record)
