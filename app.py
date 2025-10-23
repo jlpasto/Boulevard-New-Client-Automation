@@ -448,9 +448,8 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
 
         logger.info(f"Found {len(rows)} order rows")
 
-        # Search for the row with matching date (find ALL matches, click the LAST one)
-        matching_row = None
-        matching_row_idx = None
+        # Collect ALL rows with matching date
+        matching_rows = []
 
         for idx, row in enumerate(rows, 1):
             # Get all cells in the row
@@ -466,21 +465,54 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
 
                 if date_text == formatted_date:
                     logger.info(f"Found matching row {idx} with date: {formatted_date}")
-                    # Store this row, but don't click yet - continue to find if there are more matches
-                    matching_row = row
-                    matching_row_idx = idx
+                    matching_rows.append((idx, row))
 
-        # After checking all rows, click the last matching row
-        if matching_row:
-            logger.info(f"Clicking last matching row (row {matching_row_idx}) for date: {formatted_date}")
-            await matching_row.click()
-            logger.info(f"Clicked order row {matching_row_idx} for date: {formatted_date}")
+        if not matching_rows:
+            logger.warning(f"No order row found with date: {formatted_date}")
+            return None
+
+        logger.info(f"Found {len(matching_rows)} row(s) with matching date. Will try each until 'View Appointment' link is found.")
+
+        # Try each matching row until we find one with "View Appointment" link
+        view_appointment_found = False
+
+        for idx, row in matching_rows:
+            logger.info(f"Trying row {idx}...")
+
+            # Click the row
+            await row.click()
+            logger.info(f"Clicked order row {idx} for date: {formatted_date}")
 
             # Wait for navigation or modal to open
             await page.wait_for_timeout(3000)
-        else:
-            logger.warning(f"No order row found with date: {formatted_date}")
+
+            # Check if "View Appointment" link exists
+            view_appointment_link = await page.query_selector('a:has-text("View Appointment")')
+
+            if view_appointment_link:
+                logger.info(f"✓ Found 'View Appointment' link in row {idx}!")
+                view_appointment_found = True
+                break
+            else:
+                logger.info(f"✗ No 'View Appointment' link in row {idx}. Going back to try next row...")
+
+                # Go back to the sales orders page
+                await page.go_back()
+
+                # Wait for the page to load
+                await page.wait_for_timeout(2000)
+
+                # Wait for table to be visible again
+                await page.wait_for_selector('tbody[md-body]', timeout=10000)
+
+                # Re-fetch rows since we navigated back
+                rows = await page.query_selector_all('tr[md-row][ng-repeat*="order in"]')
+
+        if not view_appointment_found:
+            logger.warning(f"None of the {len(matching_rows)} matching rows contain 'View Appointment' link")
             return None
+
+        logger.info("Proceeding with data extraction from the correct appointment...")
 
         # Initialize details dictionary
         appointment_details = {}
