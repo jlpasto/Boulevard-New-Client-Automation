@@ -1024,10 +1024,63 @@ async def getMembershipInfo(page: Page, client_id: str) -> Dict[str, Any]:
         await page.goto(client_url)
         logger.info(f"Navigated to: {client_url}")
 
-        # Wait for page to load
+        # Wait for page to load (we're on Overview tab by default)
         await page.wait_for_timeout(2000)
 
-        # Click on Memberships tab
+        # Extract scheduled appointments first (we're already on Overview tab)
+        logger.info("Extracting scheduled appointments from Overview tab...")
+        scheduled_appointments = []
+
+        try:
+            # Check for scheduled appointments section
+            scheduled_heading = await page.query_selector('h5.title:has-text("Scheduled Appointments")')
+
+            if scheduled_heading:
+                logger.info("Found Scheduled Appointments section")
+
+                # Find all appointment rows in the table
+                appointment_rows = await page.query_selector_all('tr[ng-repeat*="appointment"]')
+
+                logger.info(f"Found {len(appointment_rows)} scheduled appointment(s)")
+
+                for row in appointment_rows:
+                    try:
+                        appointment = {}
+
+                        # Extract service name
+                        service_name_div = await row.query_selector('div.service-name')
+                        if service_name_div:
+                            service_text = await service_name_div.text_content()
+                            appointment['service'] = service_text.strip() if service_text else 'N/A'
+                        else:
+                            appointment['service'] = 'N/A'
+
+                        # Extract date and time
+                        date_div = await row.query_selector('div.date')
+                        if date_div:
+                            date_text = await date_div.text_content()
+                            appointment['date_time'] = date_text.strip() if date_text else 'N/A'
+                        else:
+                            appointment['date_time'] = 'N/A'
+
+                        scheduled_appointments.append(appointment)
+                        logger.info(f"Extracted appointment: {appointment}")
+
+                    except Exception as e:
+                        logger.error(f"Error extracting individual appointment: {e}", exc_info=True)
+                        continue
+
+                membership_info['scheduled_appointments'] = scheduled_appointments
+                logger.info(f"Successfully extracted {len(scheduled_appointments)} scheduled appointment(s)")
+            else:
+                logger.info("No Scheduled Appointments section found")
+                membership_info['scheduled_appointments'] = []
+
+        except Exception as e:
+            logger.error(f"Error extracting scheduled appointments: {e}", exc_info=True)
+            membership_info['scheduled_appointments'] = []
+
+        # Now click on Memberships tab to extract membership details
         logger.info("Looking for Memberships tab...")
         memberships_tab = await page.query_selector('md-tab-item:has-text("Memberships")')
 
@@ -1219,7 +1272,17 @@ async def extract_new_client_fields(page: Page, new_client_events: List[Dict[str
 
             # Extract membership information and add it to extracted_record
             membership_details = await getMembershipInfo(page, extracted_record['client_id'])
-            extracted_record['membership'] = membership_details
+
+            # Append individual membership fields to extracted_record
+            extracted_record['membership_status'] = membership_details.get('status', 'N/A')
+            extracted_record['membership_start_date'] = membership_details.get('start_date', 'N/A')
+            extracted_record['membership_price'] = membership_details.get('price', 'N/A')
+            extracted_record['scheduled_appointments'] = membership_details.get('scheduled_appointments', [])
+
+            logger.info(f"Added membership_status to record: {extracted_record['membership_status']}")
+            logger.info(f"Added membership_start_date to record: {extracted_record['membership_start_date']}")
+            logger.info(f"Added membership_price to record: {extracted_record['membership_price']}")
+            logger.info(f"Added scheduled_appointments to record: {len(extracted_record['scheduled_appointments'])} appointment(s)")
 
 
         # Save extracted data to file

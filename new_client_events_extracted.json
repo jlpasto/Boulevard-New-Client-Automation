@@ -27,10 +27,14 @@
         "Tattoo Removal"
       ]
     },
-    "membership": {
-      "status": "N/A",
-      "start_date": "N/A",
-      "price": "N/A"
-    }
+    "membership_status": "N/A",
+    "membership_start_date": "N/A",
+    "membership_price": "N/A",
+    "scheduled_appointments": [
+      {
+        "service": "PIQo Tattoo with Gabrielle",
+        "date_time": "Tuesday, Nov 18 @ 2:00pm"
+      }
+    ]
   }
 ]
