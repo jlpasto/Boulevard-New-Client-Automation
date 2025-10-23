@@ -448,8 +448,10 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
 
         logger.info(f"Found {len(rows)} order rows")
 
-        # Search for the row with matching date
-        row_found = False
+        # Search for the row with matching date (find ALL matches, click the LAST one)
+        matching_row = None
+        matching_row_idx = None
+
         for idx, row in enumerate(rows, 1):
             # Get all cells in the row
             cells = await row.query_selector_all('td[md-cell]')
@@ -463,19 +465,20 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
                 logger.debug(f"Row {idx} date: '{date_text}'")
 
                 if date_text == formatted_date:
-                    logger.info(f"Found matching row with date: {formatted_date}")
+                    logger.info(f"Found matching row {idx} with date: {formatted_date}")
+                    # Store this row, but don't click yet - continue to find if there are more matches
+                    matching_row = row
+                    matching_row_idx = idx
 
-                    # Click the row
-                    await row.click()
-                    logger.info(f"Clicked order row for date: {formatted_date}")
+        # After checking all rows, click the last matching row
+        if matching_row:
+            logger.info(f"Clicking last matching row (row {matching_row_idx}) for date: {formatted_date}")
+            await matching_row.click()
+            logger.info(f"Clicked order row {matching_row_idx} for date: {formatted_date}")
 
-                    # Wait for navigation or modal to open
-                    await page.wait_for_timeout(3000)
-
-                    row_found = True
-                    break
-
-        if not row_found:
+            # Wait for navigation or modal to open
+            await page.wait_for_timeout(3000)
+        else:
             logger.warning(f"No order row found with date: {formatted_date}")
             return None
 
