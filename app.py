@@ -742,6 +742,193 @@ async def getAppointmentDetails(page: Page, client_name: str, appointment_date: 
 
                                 if not has_completed_pt_intake:
                                     logger.info("'New PT Intake Form' is not completed or not found")
+                                else:
+                                    # Extract details from New PT Intake Form modal
+                                    logger.info("Clicking on 'New PT Intake Form' to extract details...")
+
+                                    try:
+                                        # Find and click the New PT Intake Form item
+                                        for item in form_items:
+                                            item_text = await item.text_content()
+                                            if item_text and "New PT Intake Form" in item_text and "Completed" in item_text:
+                                                await item.click()
+                                                logger.info("Clicked on 'New PT Intake Form'")
+
+                                                # Wait for the modal to open
+                                                await page.wait_for_timeout(2000)
+
+                                                # Extract form fields
+                                                pt_intake_details = {}
+
+                                                # Extract Birthday
+                                                try:
+                                                    birthday_input = await page.query_selector('input[placeholder="MM/DD/YYYY"]')
+                                                    if birthday_input:
+                                                        birthday_value = await birthday_input.get_attribute('value')
+                                                        pt_intake_details['birthday'] = birthday_value if birthday_value else 'N/A'
+                                                        logger.info(f"Extracted birthday: {pt_intake_details['birthday']}")
+                                                    else:
+                                                        pt_intake_details['birthday'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting birthday: {e}", exc_info=True)
+                                                    pt_intake_details['birthday'] = 'N/A'
+
+                                                # Extract Home Address
+                                                try:
+                                                    address_label = await page.query_selector('label:has-text("Home address")')
+                                                    if address_label:
+                                                        label_for = await address_label.get_attribute('for')
+                                                        if label_for:
+                                                            address_textarea = await page.query_selector(f'textarea#{label_for}')
+                                                            if address_textarea:
+                                                                address_value = await address_textarea.input_value()
+                                                                pt_intake_details['home_address'] = address_value if address_value else 'N/A'
+                                                                logger.info(f"Extracted home address: {pt_intake_details['home_address']}")
+                                                            else:
+                                                                pt_intake_details['home_address'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['home_address'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['home_address'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting home address: {e}", exc_info=True)
+                                                    pt_intake_details['home_address'] = 'N/A'
+
+                                                # Extract Cell Phone
+                                                try:
+                                                    cell_phone_label = await page.query_selector('label:has-text("Cell Phone")')
+                                                    if cell_phone_label:
+                                                        label_for = await cell_phone_label.get_attribute('for')
+                                                        if label_for:
+                                                            cell_phone_input = await page.query_selector(f'input#{label_for}')
+                                                            if cell_phone_input:
+                                                                cell_phone_value = await cell_phone_input.get_attribute('value')
+                                                                pt_intake_details['cell_phone'] = cell_phone_value if cell_phone_value else 'N/A'
+                                                                logger.info(f"Extracted cell phone: {pt_intake_details['cell_phone']}")
+                                                            else:
+                                                                pt_intake_details['cell_phone'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['cell_phone'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['cell_phone'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting cell phone: {e}", exc_info=True)
+                                                    pt_intake_details['cell_phone'] = 'N/A'
+
+                                                # Extract Phone Carrier
+                                                try:
+                                                    carrier_label = await page.query_selector('label:has-text("Phone Carrier")')
+                                                    if carrier_label:
+                                                        label_for = await carrier_label.get_attribute('for')
+                                                        if label_for:
+                                                            carrier_input = await page.query_selector(f'input#{label_for}')
+                                                            if carrier_input:
+                                                                carrier_value = await carrier_input.get_attribute('value')
+                                                                pt_intake_details['phone_carrier'] = carrier_value if carrier_value else 'N/A'
+                                                                logger.info(f"Extracted phone carrier: {pt_intake_details['phone_carrier']}")
+                                                            else:
+                                                                pt_intake_details['phone_carrier'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['phone_carrier'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['phone_carrier'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting phone carrier: {e}", exc_info=True)
+                                                    pt_intake_details['phone_carrier'] = 'N/A'
+
+                                                # Extract Occupation
+                                                try:
+                                                    occupation_label = await page.query_selector('label:has-text("Occupation")')
+                                                    if occupation_label:
+                                                        label_for = await occupation_label.get_attribute('for')
+                                                        if label_for:
+                                                            occupation_input = await page.query_selector(f'input#{label_for}')
+                                                            if occupation_input:
+                                                                occupation_value = await occupation_input.get_attribute('value')
+                                                                pt_intake_details['occupation'] = occupation_value if occupation_value else 'N/A'
+                                                                logger.info(f"Extracted occupation: {pt_intake_details['occupation']}")
+                                                            else:
+                                                                pt_intake_details['occupation'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['occupation'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['occupation'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting occupation: {e}", exc_info=True)
+                                                    pt_intake_details['occupation'] = 'N/A'
+
+                                                # Extract Best Way To Contact (radio button)
+                                                try:
+                                                    contact_method_label = await page.query_selector('label:has-text("Best Way To Contact You")')
+                                                    if contact_method_label:
+                                                        # Find the checked radio button
+                                                        checked_radio = await page.query_selector('input[type="radio"][name*="mui"]:checked')
+                                                        if checked_radio:
+                                                            # Get the parent label to find the text
+                                                            parent_label = await checked_radio.query_selector('xpath=ancestor::label[1]')
+                                                            if parent_label:
+                                                                label_text = await parent_label.text_content()
+                                                                # Extract just the contact method text
+                                                                if 'Phone' in label_text:
+                                                                    pt_intake_details['best_contact_method'] = 'Phone'
+                                                                elif 'Text' in label_text:
+                                                                    pt_intake_details['best_contact_method'] = 'Text'
+                                                                elif 'Email' in label_text:
+                                                                    pt_intake_details['best_contact_method'] = 'Email'
+                                                                else:
+                                                                    pt_intake_details['best_contact_method'] = 'N/A'
+                                                                logger.info(f"Extracted best contact method: {pt_intake_details['best_contact_method']}")
+                                                            else:
+                                                                pt_intake_details['best_contact_method'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['best_contact_method'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['best_contact_method'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting best contact method: {e}", exc_info=True)
+                                                    pt_intake_details['best_contact_method'] = 'N/A'
+
+                                                # Extract Referral Choice (radio button)
+                                                try:
+                                                    referral_label = await page.query_selector('label:has-text("Referral Choice")')
+                                                    if referral_label:
+                                                        # Find parent container and then find checked radio within it
+                                                        referral_container = await referral_label.query_selector('xpath=ancestor::div[contains(@class, "MuiFormControl-root")][1]')
+                                                        if referral_container:
+                                                            checked_referral = await referral_container.query_selector('input[type="radio"]:checked')
+                                                            if checked_referral:
+                                                                parent_label = await checked_referral.query_selector('xpath=ancestor::label[1]')
+                                                                if parent_label:
+                                                                    referral_text = await parent_label.text_content()
+                                                                    # Clean up the text to extract just the referral source
+                                                                    referral_text = referral_text.strip()
+                                                                    pt_intake_details['referral_source'] = referral_text if referral_text else 'N/A'
+                                                                    logger.info(f"Extracted referral source: {pt_intake_details['referral_source']}")
+                                                                else:
+                                                                    pt_intake_details['referral_source'] = 'N/A'
+                                                            else:
+                                                                pt_intake_details['referral_source'] = 'N/A'
+                                                        else:
+                                                            pt_intake_details['referral_source'] = 'N/A'
+                                                    else:
+                                                        pt_intake_details['referral_source'] = 'N/A'
+                                                except Exception as e:
+                                                    logger.error(f"Error extracting referral source: {e}", exc_info=True)
+                                                    pt_intake_details['referral_source'] = 'N/A'
+
+                                                # Add PT Intake details to appointment_details
+                                                appointment_details['pt_intake_form'] = pt_intake_details
+                                                logger.info(f"Successfully extracted PT Intake Form details")
+
+                                                # Close the modal by pressing Escape or clicking close button
+                                                await page.keyboard.press('Escape')
+                                                await page.wait_for_timeout(1000)
+
+                                                break
+
+                                    except Exception as e:
+                                        logger.error(f"Error extracting PT Intake Form details: {e}", exc_info=True)
+                                        appointment_details['pt_intake_form'] = {}
 
                 except Exception as e:
                     logger.error(f"Error extracting PT Intake Form status: {e}", exc_info=True)
