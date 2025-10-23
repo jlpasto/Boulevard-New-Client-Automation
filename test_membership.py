@@ -134,7 +134,8 @@ async def getMembershipInfo(page: Page, client_id: str) -> Dict[str, Any]:
     membership_info = {
         'status': 'N/A',
         'start_date': 'N/A',
-        'price': 'N/A'
+        'price': 'N/A',
+        'gallery_first_date': 'N/A'
     }
 
     try:
@@ -152,69 +153,114 @@ async def getMembershipInfo(page: Page, client_id: str) -> Dict[str, Any]:
         logger.info("Looking for Memberships tab...")
         memberships_tab = await page.query_selector('md-tab-item:has-text("Memberships")')
 
-        if not memberships_tab:
+        if memberships_tab:
+            await memberships_tab.click()
+            logger.info("Clicked on Memberships tab")
+
+            # Wait for membership content to load
+            await page.wait_for_timeout(2000)
+
+            # Look for Overview card to confirm there's membership data
+            overview_card = await page.query_selector('span.MuiTypography-h5:has-text("Overview")')
+
+            if not overview_card:
+                logger.info("No membership Overview found - client may not have an active membership")
+            else:
+                logger.info("Found membership Overview section")
+
+                # Extract Status
+                try:
+                    status_label = await page.query_selector('span.MuiTypography-textv2BodyHeavy:has-text("Status")')
+                    if status_label:
+                        # Find the parent container and then the status value
+                        parent = await status_label.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
+                        if parent:
+                            status_value = await parent.query_selector('span.MuiTypography-textLabelSmallDefault')
+                            if status_value:
+                                status_text = await status_value.text_content()
+                                membership_info['status'] = status_text.strip() if status_text else 'N/A'
+                                logger.info(f"Extracted status: {membership_info['status']}")
+                except Exception as e:
+                    logger.error(f"Error extracting membership status: {e}", exc_info=True)
+
+                # Extract Start date
+                try:
+                    start_date_label = await page.query_selector('span.MuiTypography-textv2BodyHeavy:has-text("Start date")')
+                    if start_date_label:
+                        # Find the parent container and then the date value
+                        parent = await start_date_label.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
+                        if parent:
+                            date_div = await parent.query_selector('div.css-164r41r')
+                            if date_div:
+                                date_text = await date_div.text_content()
+                                membership_info['start_date'] = date_text.strip() if date_text else 'N/A'
+                                logger.info(f"Extracted start date: {membership_info['start_date']}")
+                except Exception as e:
+                    logger.error(f"Error extracting membership start date: {e}", exc_info=True)
+
+                # Extract Price
+                try:
+                    price_label = await page.query_selector('span.MuiTypography-textv2BodyHeavy:has-text("Price")')
+                    if price_label:
+                        # Find the parent container and then the price value
+                        parent = await price_label.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
+                        if parent:
+                            price_div = await parent.query_selector('div.css-164r41r')
+                            if price_div:
+                                price_text = await price_div.text_content()
+                                membership_info['price'] = price_text.strip() if price_text else 'N/A'
+                                logger.info(f"Extracted price: {membership_info['price']}")
+                except Exception as e:
+                    logger.error(f"Error extracting membership price: {e}", exc_info=True)
+        else:
             logger.warning("Memberships tab not found")
-            return membership_info
 
-        await memberships_tab.click()
-        logger.info("Clicked on Memberships tab")
-
-        # Wait for membership content to load
-        await page.wait_for_timeout(2000)
-
-        # Look for Overview card to confirm there's membership data
-        overview_card = await page.query_selector('span.MuiTypography-h5:has-text("Overview")')
-
-        if not overview_card:
-            logger.info("No membership Overview found - client may not have an active membership")
-            return membership_info
-
-        logger.info("Found membership Overview section")
-
-        # Extract Status
+        # Click Gallery tab and extract first date (outside of membership section)
         try:
-            status_label = await page.query_selector('span.MuiTypography-textv2BodyHeavy:has-text("Status")')
-            if status_label:
-                # Find the parent container and then the status value
-                parent = await status_label.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
-                if parent:
-                    status_value = await parent.query_selector('span.MuiTypography-textLabelSmallDefault')
-                    if status_value:
-                        status_text = await status_value.text_content()
-                        membership_info['status'] = status_text.strip() if status_text else 'N/A'
-                        logger.info(f"Extracted status: {membership_info['status']}")
-        except Exception as e:
-            logger.error(f"Error extracting membership status: {e}", exc_info=True)
+            logger.info("Looking for Gallery tab...")
+            gallery_tab = await page.query_selector('md-tab-item:has-text("Gallery")')
 
-        # Extract Start date
-        try:
-            start_date_label = await page.query_selector('span.MuiTypography-textv2BodyHeavy:has-text("Start date")')
-            if start_date_label:
-                # Find the parent container and then the date value
-                parent = await start_date_label.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
-                if parent:
-                    date_div = await parent.query_selector('div.css-164r41r')
-                    if date_div:
-                        date_text = await date_div.text_content()
-                        membership_info['start_date'] = date_text.strip() if date_text else 'N/A'
-                        logger.info(f"Extracted start date: {membership_info['start_date']}")
-        except Exception as e:
-            logger.error(f"Error extracting membership start date: {e}", exc_info=True)
+            if gallery_tab:
+                await gallery_tab.click()
+                logger.info("Clicked on Gallery tab")
 
-        # Extract Price
-        try:
-            price_label = await page.query_selector('span.MuiTypography-textv2BodyHeavy:has-text("Price")')
-            if price_label:
-                # Find the parent container and then the price value
-                parent = await price_label.query_selector('xpath=ancestor::div[contains(@class, "MuiBox-root")][1]')
-                if parent:
-                    price_div = await parent.query_selector('div.css-164r41r')
-                    if price_div:
-                        price_text = await price_div.text_content()
-                        membership_info['price'] = price_text.strip() if price_text else 'N/A'
-                        logger.info(f"Extracted price: {membership_info['price']}")
+                # Wait for gallery content to load
+                await page.wait_for_timeout(2000)
+
+                # Check for Gallery heading presence
+                gallery_heading = await page.query_selector('span.MuiTypography-textv2HeadingPage:has-text("Gallery")')
+
+                if gallery_heading:
+                    logger.info("Found Gallery heading")
+
+                    # Extract first date span
+                    first_date_span = await page.query_selector('span.MuiTypography-textv2HeadingDetail')
+                    if first_date_span:
+                        date_text = await first_date_span.text_content()
+                        if date_text:
+                            date_text = date_text.strip()
+                            try:
+                                # Convert from "September 24, 2025" to "10/07/2025" format
+                                parsed_date = datetime.strptime(date_text, "%B %d, %Y")
+                                membership_info['gallery_first_date'] = parsed_date.strftime("%m/%d/%Y")
+                                logger.info(f"Extracted gallery first date: {membership_info['gallery_first_date']}")
+                            except ValueError as e:
+                                logger.error(f"Error parsing gallery date '{date_text}': {e}")
+                                membership_info['gallery_first_date'] = date_text  # Keep original if parsing fails
+                        else:
+                            membership_info['gallery_first_date'] = 'N/A'
+                    else:
+                        logger.info("No date span found in Gallery")
+                        membership_info['gallery_first_date'] = 'N/A'
+                else:
+                    logger.info("Gallery heading not found")
+                    membership_info['gallery_first_date'] = 'N/A'
+            else:
+                logger.warning("Gallery tab not found")
+                membership_info['gallery_first_date'] = 'N/A'
         except Exception as e:
-            logger.error(f"Error extracting membership price: {e}", exc_info=True)
+            logger.error(f"Error extracting gallery date: {e}", exc_info=True)
+            membership_info['gallery_first_date'] = 'N/A'
 
         logger.info(f"Successfully extracted membership info: {membership_info}")
 
