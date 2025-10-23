@@ -15,7 +15,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('boulevard_automation.log'),
+        # logging.FileHandler('boulevard_automation.log'),  # Commented out - no log file generation
         logging.StreamHandler()
     ]
 )
@@ -1786,12 +1786,12 @@ async def main():
                         logger.info(f"{'='*60}")
                         cleaned_data = clean_data(extracted_data, start_number=start_number)
 
-                        # Save cleaned data to JSON file
-                        extracted_filename = "new_client_events_extracted.json"
-                        with open(extracted_filename, 'w', encoding='utf-8') as f:
-                            json.dump(cleaned_data, f, indent=2, ensure_ascii=False)
+                        # Save cleaned data to JSON file (commented out)
+                        # extracted_filename = "new_client_events_extracted.json"
+                        # with open(extracted_filename, 'w', encoding='utf-8') as f:
+                        #     json.dump(cleaned_data, f, indent=2, ensure_ascii=False)
 
-                        logger.info(f"\nCleaned data saved to: {extracted_filename}")
+                        # logger.info(f"\nCleaned data saved to: {extracted_filename}")
 
                         # Append to Google Sheets
                         sheets_success = append_to_google_sheets(cleaned_data)
@@ -1799,9 +1799,9 @@ async def main():
                         logger.info(f"\n{'='*60}")
                         logger.info(f"FINAL SUMMARY: Processed {len(cleaned_data)} new client records")
                         logger.info(f"{'='*60}")
-                        logger.info("\nGenerated files:")
-                        logger.info("  Output file:")
-                        logger.info("    - new_client_events_extracted.json (cleaned client data with specific fields)")
+                        # logger.info("\nGenerated files:")
+                        # logger.info("  Output file:")
+                        # logger.info("    - new_client_events_extracted.json (cleaned client data with specific fields)")
                         if sheets_success:
                             logger.info("  Google Sheets:")
                             logger.info("    - Data successfully appended to monthly sheet")
